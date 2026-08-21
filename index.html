@@ -81,6 +81,7 @@ body{background:var(--frost);color:var(--ink);font-family:'Instrument Sans',syst
 .btn:focus-visible{outline:2px solid var(--label);outline-offset:2px}
 .btn--wide{width:100%;padding:15px}
 .btn--ghost{background:none;color:var(--ink-soft);border:1px solid var(--line);font-weight:500}
+.btn--dark{background:var(--ink);color:var(--label)}
 
 .sheet{position:fixed;inset:0;z-index:60;background:rgba(14,42,43,.5);display:none;
   align-items:flex-end;justify-content:center}
@@ -109,12 +110,16 @@ body{background:var(--frost);color:var(--ink);font-family:'Instrument Sans',syst
 .fld textarea{resize:vertical;min-height:62px}
 .hint{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:6px;display:none}
 .hint--on{display:block}
+.nota{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink-soft);
+  margin-top:8px;display:none}
+.nota--on{display:block}
 
 .dates{display:flex;gap:7px;overflow-x:auto;padding-bottom:5px;scrollbar-width:none}
 .dates::-webkit-scrollbar{display:none}
 .date{flex:0 0 auto;background:var(--label);border:1px solid var(--line);border-radius:var(--r);
   padding:9px 12px;cursor:pointer;text-align:center;min-width:76px}
 .date--on{background:var(--ink);border-color:var(--ink);color:var(--label)}
+.date--comb{border-style:dashed}
 .date:focus-visible{outline:2px solid var(--yolk);outline-offset:2px}
 .date__t{font-family:'DM Mono',monospace;font-size:12.5px;letter-spacing:.04em}
 
@@ -122,7 +127,6 @@ body{background:var(--frost);color:var(--ink);font-family:'Instrument Sans',syst
   background:#fff;border-left:3px solid var(--stamp);padding:10px 12px;border-radius:2px}
 .err--on{display:block}
 
-/* estados de carregamento e falha */
 .state{padding:60px 0;text-align:center}
 .state__t{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:600;margin-bottom:8px}
 .state__d{color:var(--ink-soft);font-size:14.5px;max-width:340px;margin:0 auto 20px}
@@ -130,13 +134,15 @@ body{background:var(--frost);color:var(--ink);font-family:'Instrument Sans',syst
   animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.5}50%{opacity:.85}}
 
-/* confirmação */
 .ok__mark{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:38px;
   line-height:1;letter-spacing:-.03em;margin-bottom:10px}
 .ok__id{font-family:'DM Mono',monospace;font-size:12px;color:var(--ink-soft);
   border:1px solid var(--line);display:inline-block;padding:5px 10px;border-radius:2px;margin-bottom:20px}
 .pix{background:var(--label);border:1px solid var(--line);border-radius:var(--r);
   padding:13px;margin:16px 0;font-family:'DM Mono',monospace;font-size:13px;word-break:break-all}
+.zaps{display:grid;gap:8px}
+.zaps__l{font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:2px}
 .foot{text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--ink-soft);padding:40px 0 10px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.bar{transform:translateY(0)}}
 </style>
@@ -158,9 +164,7 @@ body{background:var(--frost);color:var(--ink);font-family:'Instrument Sans',syst
 </nav>
 
 <main class="wrap" id="app">
-  <div class="state">
-    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
-  </div>
+  <div class="state"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
 </main>
 
 <p class="foot" id="foot" style="display:none">
@@ -193,6 +197,7 @@ body{background:var(--frost);color:var(--ink);font-family:'Instrument Sans',syst
     <div class="fld">
       <label>Data de entrega</label>
       <div class="dates" id="dates"></div>
+      <div class="nota" id="notaComb">Combinamos a data com você pelo WhatsApp. O pedido já fica reservado.</div>
     </div>
     <div class="fld"><label for="f-obs">Observações (opcional)</label><textarea id="f-obs"></textarea></div>
 
@@ -206,24 +211,26 @@ body{background:var(--frost);color:var(--ink);font-family:'Instrument Sans',syst
 /* ============================================================
    ↓↓↓ COLE AQUI A URL DO APP DA WEB (Apps Script) ↓↓↓
    ============================================================ */
-const API = 'https://script.google.com/macros/s/AKfycbzOlvwiQQnxcVWMnUv70U6myJjtoNVg4KDhOzgzy644ybSnxliKExf0M6sWrr9cGUx6/exec';
+const API = 'https://script.google.com/macros/s/AKfycbwrDQt72y5NfzDe6FCDwMUbGYskRZsugUOkIAq6Fh8W/dev';
 
-/* Fallback: se a API cair, o cliente ainda pede pelo WhatsApp. */
+/* Usados só se a API não responder. Os números oficiais vêm da
+   aba Config da planilha (fone_joao / fone_vitor). */
 const FONE_FALLBACK = { joao: '5511945508235', vitor: '5511900000000' };
 
+const NOMES = { joao: 'João', vitor: 'Vitor' };
 const ORDEM_CAT = ['Lasanha','Sofiatelli','Rondelle','Sorrentino','Cannelloni','Panqueca','Molho'];
 
 /* ============================================================ */
-const VEND = (new URLSearchParams(location.search).get('v') || 'joao').toLowerCase();
-const VEND_NOME = VEND === 'vitor' ? 'Vitor' : 'João';
+const VEND = (new URLSearchParams(location.search).get('v') || 'joao').toLowerCase() === 'vitor' ? 'vitor' : 'joao';
+const OUTRO = VEND === 'joao' ? 'vitor' : 'joao';
 const cart = {};
-let PROD = {}, dataSel = null, enviando = false;
+let PROD = {}, FONES = Object.assign({}, FONE_FALLBACK), dataSel = null, enviando = false;
 const idem = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 
 const brl = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
 const $ = id => document.getElementById(id);
+const fone = k => (FONES[k] || FONE_FALLBACK[k] || FONE_FALLBACK.joao);
 
-/* ---------- carregar catálogo ---------- */
 carregar();
 
 async function carregar() {
@@ -231,12 +238,22 @@ async function carregar() {
     const r = await fetch(API + '?t=' + Date.now(), { redirect: 'follow' });
     const d = await r.json();
     if (!d.ok) throw new Error(d.erro || 'resposta inválida');
+    if (d.fones) FONES = Object.assign({}, FONE_FALLBACK, limparFones(d.fones));
     if (!d.loja_aberta) return telaFechada();
     if (!d.produtos.length) return telaVazia();
     montar(d);
   } catch (err) {
     telaErro();
   }
+}
+
+function limparFones(f) {
+  const out = {};
+  Object.keys(f || {}).forEach(k => {
+    const n = String(f[k] || '').replace(/\D/g, '');
+    if (n.length >= 12) out[k] = n;      // 55 + DDD + número
+  });
+  return out;
 }
 
 function montar(d) {
@@ -269,7 +286,6 @@ function montar(d) {
     sec.innerHTML = `<div class="sec__hd">
         <h2 class="sec__name">${esc(cat)}</h2>
         <span class="sec__meta">${esc(itens[0].peso)}</span></div>`;
-
     itens.forEach(p => sec.appendChild(linhaProduto(p)));
     app.appendChild(sec);
   });
@@ -279,9 +295,8 @@ function montar(d) {
   $('navBox').style.display = 'block';
   $('foot').style.display = 'block';
 
-  montarDatas(d.datas);
-  $('shV').textContent = 'Atendimento · ' + VEND_NOME;
-  window.__min = d.pedido_minimo || 0;
+  montarDatas(d.datas, d.permite_combinar !== false);
+  $('shV').textContent = 'Atendimento · ' + NOMES[VEND];
 }
 
 function linhaProduto(p) {
@@ -321,7 +336,6 @@ function linhaProduto(p) {
   return row;
 }
 
-/* ---------- carrinho ---------- */
 function itens() { return Object.keys(cart).map(id => ({ id: id, qtd: cart[id], p: PROD[id] })); }
 function soma() { return itens().reduce((s, l) => s + l.p.preco * l.qtd, 0); }
 function pecas() { return itens().reduce((s, l) => s + l.qtd, 0); }
@@ -332,24 +346,32 @@ function redraw() {
   $('barT').textContent = brl(soma());
 }
 
-/* ---------- datas ---------- */
-function montarDatas(datas) {
+function montarDatas(datas, permiteCombinar) {
   const box = $('dates'); box.innerHTML = '';
-  if (!datas.length) { box.innerHTML = '<span class="sec__meta">Sem datas abertas no momento.</span>'; return; }
-  datas.forEach((dt, ix) => {
+  const opcoes = (datas || []).slice();
+  if (permiteCombinar) opcoes.push({ data: 'combinar', rotulo: 'A combinar' });
+
+  if (!opcoes.length) {
+    box.innerHTML = '<span class="sec__meta">Sem datas abertas no momento.</span>';
+    return;
+  }
+
+  opcoes.forEach((dt, ix) => {
     const b = document.createElement('button');
-    b.className = 'date'; b.type = 'button';
+    b.className = 'date' + (dt.data === 'combinar' ? ' date--comb' : '');
+    b.type = 'button';
     b.innerHTML = `<div class="date__t">${esc(dt.rotulo)}</div>`;
     b.onclick = () => {
       document.querySelectorAll('.date').forEach(x => x.classList.remove('date--on'));
-      b.classList.add('date--on'); dataSel = dt.data;
+      b.classList.add('date--on');
+      dataSel = dt.data;
+      $('notaComb').classList.toggle('nota--on', dt.data === 'combinar');
     };
     box.appendChild(b);
     if (ix === 0) b.click();
   });
 }
 
-/* ---------- checkout ---------- */
 $('goCheckout').onclick = () => {
   $('recap').innerHTML = itens().map(l => `
     <div class="recap__r">
@@ -368,7 +390,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('sheet').classList.contains('sheet--on')) fechar();
 });
 
-/* ---------- reconhecer cliente pelo telefone ---------- */
 $('f-tel').addEventListener('blur', async () => {
   const tel = $('f-tel').value.replace(/\D/g, '');
   if (tel.length < 10) return;
@@ -385,7 +406,6 @@ $('f-tel').addEventListener('blur', async () => {
   } catch (e) { /* silêncio: é só uma conveniência */ }
 });
 
-/* ---------- enviar ---------- */
 $('send').onclick = async () => {
   if (enviando) return;
   const nome = $('f-nome').value.trim();
@@ -422,7 +442,8 @@ $('send').onclick = async () => {
       err.classList.add('err--on');
       return;
     }
-    telaOk(d, nome, tel, end, obs);
+    if (d.fones) FONES = Object.assign({}, FONES, limparFones(d.fones));
+    telaOk(d);
   } catch (e) {
     err.innerHTML = 'Sem conexão com o sistema. ' +
       '<a href="' + linkWhats(nome, tel, end, obs) + '" target="_blank" style="color:var(--stamp)">' +
@@ -435,8 +456,7 @@ $('send').onclick = async () => {
   }
 };
 
-/* ---------- telas ---------- */
-function telaOk(d, nome, tel, end, obs) {
+function telaOk(d) {
   fechar();
   $('navBox').style.display = 'none';
   $('freezerLine').style.display = 'none';
@@ -444,27 +464,43 @@ function telaOk(d, nome, tel, end, obs) {
   $('bar').classList.remove('bar--on');
   window.scrollTo(0, 0);
 
+  const combinar = (d.combinar === true) || (d.data_entrega === 'combinar');
+  const qtd = pecas();
   const linhas = d.itens.map(i => `${i.qtd}x ${i.categoria} ${i.sabor} ${i.peso}`).join('%0A');
-  const msg = `Oi! Acabei de fazer o pedido *${d.pedido_id}* pelo site.%0A%0A${linhas}%0A%0ATotal: ${brl(d.total)}`;
-  const fone = FONE_FALLBACK[VEND] || FONE_FALLBACK.joao;
+  const base = `Oi! Acabei de fazer o pedido *${d.pedido_id}* pelo site.%0A%0A${linhas}%0A%0ATotal: ${brl(d.total)}`;
+  const msg = combinar ? base + '%0A%0APodemos combinar a data de entrega?' : base;
+
+  const frase = combinar
+    ? `Separamos ${qtd} ${qtd === 1 ? 'item' : 'itens'} no freezer. Total de <b>${brl(d.total)}</b>.
+       Agora é só <b>combinar a data</b> com a gente pelo WhatsApp.`
+    : `Separamos ${qtd} ${qtd === 1 ? 'item' : 'itens'} no freezer para
+       <b>${esc(rotuloDe(d.data_entrega))}</b>. Total de <b>${brl(d.total)}</b>.`;
 
   $('app').innerHTML = `
     <div class="state" style="text-align:left">
       <div class="ok__mark">Pedido<br>reservado.</div>
       <div class="ok__id">${esc(d.pedido_id)}</div>
-      <p class="state__d" style="margin:0 0 18px;max-width:none">
-        Separamos ${pecas()} ${pecas() === 1 ? 'item' : 'itens'} no freezer para
-        <b>${esc(rotuloDe(d.data_entrega))}</b>. Total de <b>${brl(d.total)}</b>.
-        ${esc(d.responsavel)} confirma com você pelo WhatsApp.
-      </p>
+      <p class="state__d" style="margin:0 0 18px;max-width:none">${frase}</p>
       ${d.chave_pix ? `<div class="pix"><b>Pix</b><br>${esc(d.chave_pix)}</div>` : ''}
-      <a class="btn btn--wide" style="display:block;text-align:center;text-decoration:none"
-         href="https://wa.me/${fone}?text=${msg}" target="_blank">Falar com ${esc(d.responsavel)}</a>
-      <button class="btn btn--wide btn--ghost" style="margin-top:9px"
-              onclick="location.reload()">Fazer outro pedido</button>
+      <div class="zaps">
+        <div class="zaps__l">${combinar ? 'Combine a data com a gente' : 'Qualquer dúvida, fale com a gente'}</div>
+        <a class="btn btn--wide" style="display:block;text-align:center;text-decoration:none"
+           href="https://wa.me/${fone(VEND)}?text=${msg}" target="_blank">
+           Falar com ${esc(NOMES[VEND])}</a>
+        <a class="btn btn--wide btn--dark" style="display:block;text-align:center;text-decoration:none"
+           href="https://wa.me/${fone(OUTRO)}?text=${msg}" target="_blank">
+           Falar com ${esc(NOMES[OUTRO])}</a>
+        <button class="btn btn--wide btn--ghost" onclick="location.reload()">Fazer outro pedido</button>
+      </div>
     </div>`;
 }
 
+function contatos() {
+  return `<p style="margin-top:16px;display:flex;gap:14px;justify-content:center">
+      <a href="https://wa.me/${fone('joao')}" style="color:var(--ink-soft);font-size:14px">Chamar João</a>
+      <a href="https://wa.me/${fone('vitor')}" style="color:var(--ink-soft);font-size:14px">Chamar Vitor</a>
+    </p>`;
+}
 function telaErro() {
   $('app').innerHTML = `
     <div class="state">
@@ -472,10 +508,7 @@ function telaErro() {
       <p class="state__d">Pode ser a sua internet. Tente de novo, ou fale
         direto com a gente que anotamos o pedido na hora.</p>
       <button class="btn" onclick="location.reload()">Tentar de novo</button>
-      <p style="margin-top:14px">
-        <a href="https://wa.me/${FONE_FALLBACK[VEND] || FONE_FALLBACK.joao}"
-           style="color:var(--ink-soft);font-size:14px">Pedir pelo WhatsApp</a>
-      </p>
+      ${contatos()}
     </div>`;
 }
 function telaFechada() {
@@ -484,8 +517,7 @@ function telaFechada() {
       <div class="state__t">Não estamos aceitando pedidos agora</div>
       <p class="state__d">Volte em breve — ou mande mensagem que a gente avisa
         assim que abrir de novo.</p>
-      <a class="btn" href="https://wa.me/${FONE_FALLBACK[VEND] || FONE_FALLBACK.joao}"
-         style="text-decoration:none">Mandar mensagem</a>
+      ${contatos()}
     </div>`;
 }
 function telaVazia() {
@@ -494,19 +526,18 @@ function telaVazia() {
       <div class="state__t">O freezer está vazio</div>
       <p class="state__d">A produção da semana ainda não entrou. Fale com a gente
         para saber quando chega.</p>
-      <a class="btn" href="https://wa.me/${FONE_FALLBACK[VEND] || FONE_FALLBACK.joao}"
-         style="text-decoration:none">Mandar mensagem</a>
+      ${contatos()}
     </div>`;
 }
 
-/* ---------- utilidades ---------- */
 function linkWhats(nome, tel, end, obs) {
   const linhas = itens().map(l => `${l.qtd}x ${l.p.categoria} ${l.p.sabor} ${l.p.peso} - ${brl(l.p.preco * l.qtd)}`).join('\n');
   const msg = `*PEDIDO — FREGONESI*\n\nCliente: ${nome}\nWhatsApp: ${tel}\nEntrega: ${rotuloDe(dataSel)}\nEndereço: ${end}\n\n${linhas}\n\n*TOTAL: ${brl(soma())}*${obs ? '\nObs: ' + obs : ''}`;
-  return 'https://wa.me/' + (FONE_FALLBACK[VEND] || FONE_FALLBACK.joao) + '?text=' + encodeURIComponent(msg);
+  return 'https://wa.me/' + fone(VEND) + '?text=' + encodeURIComponent(msg);
 }
 function rotuloDe(iso) {
   if (!iso) return '';
+  if (iso === 'combinar') return 'a combinar';
   const p = String(iso).split('-');
   const d = new Date(+p[0], +p[1] - 1, +p[2]);
   const sem = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
