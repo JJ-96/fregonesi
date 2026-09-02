@@ -309,7 +309,7 @@ function linhaProduto(p) {
       <div class="item__ln">
         <span class="item__pr">${brl(p.preco)}</span><span class="dot"></span>
         ${out ? '<span class="gone">acabou</span>'
-              : `<span class="${p.estoque <= 3 ? 'low' : ''}">${p.estoque} no freezer</span>`}
+              : `<span class="${p.estoque <= 3 ? 'low' : ''}">${p.estoque} unidadee(s)</span>`}
       </div>
     </div>
     <div class="stp">
@@ -471,9 +471,9 @@ function telaOk(d) {
   const msg = combinar ? base + '%0A%0APodemos combinar a data de entrega?' : base;
 
   const frase = combinar
-    ? `Separamos ${qtd} ${qtd === 1 ? 'item' : 'itens'} no freezer. Total de <b>${brl(d.total)}</b>.
+    ? `Separamos ${qtd} ${qtd === 1 ? 'item' : 'itens'}. Total de <b>${brl(d.total)}</b>.
        Agora é só <b>combinar a data</b> com a gente pelo WhatsApp.`
-    : `Separamos ${qtd} ${qtd === 1 ? 'item' : 'itens'} no freezer para
+    : `Separamos ${qtd} ${qtd === 1 ? 'item' : 'itens'} 
        <b>${esc(rotuloDe(d.data_entrega))}</b>. Total de <b>${brl(d.total)}</b>.`;
 
   $('app').innerHTML = `
