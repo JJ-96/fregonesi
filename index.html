@@ -308,7 +308,7 @@ function linhaProduto(p) {
       <div class="item__nm">${esc(p.sabor)}</div>
       <div class="item__ln">
         <span class="item__pr">${brl(p.preco)}</span><span class="dot"></span>
-        ${out ? '<span class="gone">acabou</span>'
+        ${out ? '<span class="gone">esgotado</span>'
               : `<span class="${p.estoque <= 3 ? 'low' : ''}">${p.estoque} unidadee(s)</span>`}
       </div>
     </div>
